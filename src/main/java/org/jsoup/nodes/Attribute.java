@@ -142,7 +142,10 @@ public class Attribute implements Map.Entry<String, String>, Cloneable  {
         accum.append(key);
         if (!shouldCollapseAttribute(key, val, out)) {
             accum.append("=\"");
-            Entities.escape(accum, Attributes.checkNotNull(val) , out, true, false, false, false);
+            if (val != null) {
+                EscapeData escapeSettings = new EscapeData(out, true, false, false, false);
+                Entities.escape(accum, val, escapeSettings);
+            }
             accum.append('"');
         }
     }

@@ -137,17 +137,37 @@ public class Entities {
      * @param out the output settings to use
      * @return the escaped string
      */
+//    public static String escape(String string, OutputSettings out) {
+//        if (string == null)
+//            return "";
+//        StringBuilder accum = StringUtil.borrowBuilder();
+//        try {
+//            escape(accum, string, out, false, false, false, false);
+//        } catch (IOException e) {
+//            throw new SerializationException(e); // doesn't happen
+//        }
+//        return StringUtil.releaseBuilder(accum);
+//    }
+
     public static String escape(String string, OutputSettings out) {
         if (string == null)
             return "";
+
+        boolean inAttribute = false;
+        boolean normaliseWhite = out != null && out.escapeMode() == EscapeMode.xhtml;
+        boolean stripLeadingWhite = false;
+        boolean trimTrailing = out != null && out.escapeMode() == EscapeMode.xhtml;
+
         StringBuilder accum = StringUtil.borrowBuilder();
         try {
-            escape(accum, string, out, false, false, false, false);
+            EscapeData settings = new EscapeData(out, inAttribute, normaliseWhite, stripLeadingWhite, trimTrailing);
+            escape(accum, string, settings);
         } catch (IOException e) {
             throw new SerializationException(e); // doesn't happen
         }
         return StringUtil.releaseBuilder(accum);
     }
+
 
     /**
      * HTML escape an input string, using the default settings (UTF-8, base entities). That is, {@code <} is returned as
@@ -164,14 +184,102 @@ public class Entities {
     private static @Nullable OutputSettings DefaultOutput; // lazy-init, to break circular dependency with OutputSettings
 
     // this method does a lot, but other breakups cause rescanning and stringbuilder generations
-    static void escape(Appendable accum, String string, OutputSettings out,
-                       boolean inAttribute, boolean normaliseWhite, boolean stripLeadingWhite, boolean trimTrailing) throws IOException {
+//    static void escape(Appendable accum, String string, OutputSettings out,
+//                       boolean inAttribute, boolean normaliseWhite, boolean stripLeadingWhite, boolean trimTrailing) throws IOException {
+//
+//        boolean lastWasWhite = false;
+//        boolean reachedNonWhite = false;
+//        final EscapeMode escapeMode = out.escapeMode();
+//        final CharsetEncoder encoder = out.encoder();
+//        final CoreCharset coreCharset = out.coreCharset; // init in out.prepareEncoder()
+//        final int length = string.length();
+//
+//        int codePoint;
+//        boolean skipped = false;
+//        for (int offset = 0; offset < length; offset += Character.charCount(codePoint)) {
+//            codePoint = string.codePointAt(offset);
+//
+//            if (normaliseWhite) {
+//                if (StringUtil.isWhitespace(codePoint)) {
+//                    if (stripLeadingWhite && !reachedNonWhite) continue;
+//                    if (lastWasWhite) continue;
+//                    if (trimTrailing) {
+//                        skipped = true;
+//                        continue;
+//                    }
+//                    accum.append(' ');
+//                    lastWasWhite = true;
+//                    continue;
+//                } else {
+//                    lastWasWhite = false;
+//                    reachedNonWhite = true;
+//                    if (skipped) {
+//                        accum.append(' '); // wasn't the end, so need to place a normalized space
+//                        skipped = false;
+//                    }
+//                }
+//            }
+//            // surrogate pairs, split implementation for efficiency on single char common case (saves creating strings, char[]):
+//            if (codePoint < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+//                final char c = (char) codePoint;
+//                // html specific and required escapes:
+//                switch (c) {
+//                    case '&':
+//                        accum.append("&amp;");
+//                        break;
+//                    case 0xA0:
+//                        if (escapeMode != EscapeMode.xhtml)
+//                            accum.append("&nbsp;");
+//                        else
+//                            accum.append("&#xa0;");
+//                        break;
+//                    case '<':
+//                        // escape when in character data or when in a xml attribute val or XML syntax; not needed in html attr val
+//                        if (!inAttribute || escapeMode == EscapeMode.xhtml || out.syntax() == Syntax.xml)
+//                            accum.append("&lt;");
+//                        else
+//                            accum.append(c);
+//                        break;
+//                    case '>':
+//                        if (!inAttribute)
+//                            accum.append("&gt;");
+//                        else
+//                            accum.append(c);
+//                        break;
+//                    case '"':
+//                        if (inAttribute)
+//                            accum.append("&quot;");
+//                        else
+//                            accum.append(c);
+//                        break;
+//                    // we escape ascii control <x20 (other than tab, line-feed, carriage return)  for XML compliance (required) and HTML ease of reading (not required) - https://www.w3.org/TR/xml/#charsets
+//                    case 0x9:
+//                    case 0xA:
+//                    case 0xD:
+//                        accum.append(c);
+//                        break;
+//                    default:
+//                        if (c < 0x20 || !canEncode(coreCharset, c, encoder))
+//                            appendEncoded(accum, escapeMode, codePoint);
+//                        else
+//                            accum.append(c);
+//                }
+//            } else {
+//                final String c = new String(Character.toChars(codePoint));
+//                if (encoder.canEncode(c)) // uses fallback encoder for simplicity
+//                    accum.append(c);
+//                else
+//                    appendEncoded(accum, escapeMode, codePoint);
+//            }
+//        }
+//    }
 
+    static void escape(Appendable accum, String string, EscapeData settings) throws IOException {
         boolean lastWasWhite = false;
         boolean reachedNonWhite = false;
-        final EscapeMode escapeMode = out.escapeMode();
-        final CharsetEncoder encoder = out.encoder();
-        final CoreCharset coreCharset = out.coreCharset; // init in out.prepareEncoder()
+        final EscapeMode escapeMode = settings.getOut().escapeMode();
+        final CharsetEncoder encoder = settings.getOut().encoder();
+        final CoreCharset coreCharset = settings.getOut().coreCharset; // init in out.prepareEncoder()
         final int length = string.length();
 
         int codePoint;
@@ -179,11 +287,11 @@ public class Entities {
         for (int offset = 0; offset < length; offset += Character.charCount(codePoint)) {
             codePoint = string.codePointAt(offset);
 
-            if (normaliseWhite) {
+            if (settings.isNormaliseWhite()) {
                 if (StringUtil.isWhitespace(codePoint)) {
-                    if (stripLeadingWhite && !reachedNonWhite) continue;
+                    if (settings.isStripLeadingWhite() && !reachedNonWhite) continue;
                     if (lastWasWhite) continue;
-                    if (trimTrailing) {
+                    if (settings.isTrimTrailing()) {
                         skipped = true;
                         continue;
                     }
@@ -215,19 +323,19 @@ public class Entities {
                         break;
                     case '<':
                         // escape when in character data or when in a xml attribute val or XML syntax; not needed in html attr val
-                        if (!inAttribute || escapeMode == EscapeMode.xhtml || out.syntax() == Syntax.xml)
+                        if (!settings.isInAttribute() || escapeMode == EscapeMode.xhtml || settings.getOut().syntax() == Syntax.xml)
                             accum.append("&lt;");
                         else
                             accum.append(c);
                         break;
                     case '>':
-                        if (!inAttribute)
+                        if (!settings.isInAttribute())
                             accum.append("&gt;");
                         else
                             accum.append(c);
                         break;
                     case '"':
-                        if (inAttribute)
+                        if (settings.isInAttribute())
                             accum.append("&quot;");
                         else
                             accum.append(c);
@@ -253,6 +361,7 @@ public class Entities {
             }
         }
     }
+
 
     private static void appendEncoded(Appendable accum, EscapeMode escapeMode, int codePoint) throws IOException {
         final String name = escapeMode.nameForCodepoint(codePoint);

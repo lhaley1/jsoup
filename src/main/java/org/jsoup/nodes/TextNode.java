@@ -5,6 +5,8 @@ import org.jsoup.internal.StringUtil;
 
 import java.io.IOException;
 
+import static org.jsoup.nodes.Entities.escape;
+
 /**
  A text node.
 
@@ -80,6 +82,39 @@ public class TextNode extends LeafNode {
         return tailNode;
     }
 
+//    @Override
+//    void outerHtmlHead(Appendable accum, int depth, Document.OutputSettings out) throws IOException {
+//        final boolean prettyPrint = out.prettyPrint();
+//        final Element parent = parentNode instanceof Element ? ((Element) parentNode) : null;
+//        final boolean normaliseWhite = prettyPrint && !Element.preserveWhitespace(parentNode);
+//        final boolean trimLikeBlock = parent != null && (parent.tag().isBlock() || parent.tag().formatAsBlock());
+//        boolean trimLeading = false, trimTrailing = false;
+//
+//        if (normaliseWhite) {
+//            trimLeading = (trimLikeBlock && siblingIndex == 0) || parentNode instanceof Document;
+//            trimTrailing = trimLikeBlock && nextSibling() == null;
+//
+//            // if this text is just whitespace, and the next node will cause an indent, skip this text:
+//            Node next = nextSibling();
+//            Node prev = previousSibling();
+//            boolean isBlank = isBlank();
+//            boolean couldSkip = (next instanceof Element && ((Element) next).shouldIndent(out)) // next will indent
+//                || (next instanceof TextNode && (((TextNode) next).isBlank())) // next is blank text, from re-parenting
+//                || (prev instanceof Element && (((Element) prev).isBlock() || prev.isNode("br"))) // br is a bit special - make sure we don't get a dangling blank line, but not a block otherwise wraps in head
+//                ;
+//            if (couldSkip && isBlank) return;
+//
+//            if (
+//                (siblingIndex == 0 && parent != null && parent.tag().formatAsBlock() && !isBlank) ||
+//                (out.outline() && siblingNodes().size() > 0 && !isBlank) ||
+//                (siblingIndex > 0 && isNode(prev, "br")) // special case wrap on inline <br> - doesn't make sense as a block tag
+//            )
+//                indent(accum, depth, out);
+//        }
+//
+//        Entities.escape(accum, coreValue(), out, false, normaliseWhite, trimLeading, trimTrailing);
+//    }
+
     @Override
     void outerHtmlHead(Appendable accum, int depth, Document.OutputSettings out) throws IOException {
         final boolean prettyPrint = out.prettyPrint();
@@ -97,21 +132,24 @@ public class TextNode extends LeafNode {
             Node prev = previousSibling();
             boolean isBlank = isBlank();
             boolean couldSkip = (next instanceof Element && ((Element) next).shouldIndent(out)) // next will indent
-                || (next instanceof TextNode && (((TextNode) next).isBlank())) // next is blank text, from re-parenting
-                || (prev instanceof Element && (((Element) prev).isBlock() || prev.isNode("br"))) // br is a bit special - make sure we don't get a dangling blank line, but not a block otherwise wraps in head
-                ;
+                    || (next instanceof TextNode && (((TextNode) next).isBlank())) // next is blank text, from re-parenting
+                    || (prev instanceof Element && (((Element) prev).isBlock() || prev.isNode("br"))) // br is a bit special - make sure we don't get a dangling blank line, but not a block otherwise wraps in head
+                    ;
             if (couldSkip && isBlank) return;
 
             if (
-                (siblingIndex == 0 && parent != null && parent.tag().formatAsBlock() && !isBlank) ||
-                (out.outline() && siblingNodes().size() > 0 && !isBlank) ||
-                (siblingIndex > 0 && isNode(prev, "br")) // special case wrap on inline <br> - doesn't make sense as a block tag
+                    (siblingIndex == 0 && parent != null && parent.tag().formatAsBlock() && !isBlank) ||
+                            (out.outline() && siblingNodes().size() > 0 && !isBlank) ||
+                            (siblingIndex > 0 && isNode(prev, "br")) // special case wrap on inline <br> - doesn't make sense as a block tag
             )
                 indent(accum, depth, out);
         }
 
-        Entities.escape(accum, coreValue(), out, false, normaliseWhite, trimLeading, trimTrailing);
+        EscapeData escapeSettings = new EscapeData(out, false, normaliseWhite, trimLeading, trimTrailing);
+        escape(accum, coreValue(), escapeSettings);
     }
+
+
 
     @Override
     void outerHtmlTail(Appendable accum, int depth, Document.OutputSettings out) throws IOException {}

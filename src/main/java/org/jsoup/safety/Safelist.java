@@ -9,6 +9,7 @@ import org.jsoup.helper.Validate;
 import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Attributes;
 import org.jsoup.nodes.Element;
+import org.jsoup.parser.Tag;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -309,6 +310,32 @@ public class Safelist {
             this.attributes.put(tagName, attributeSet);
         }
         return this;
+    }
+
+    public Cleaner.ElementMeta createSafeElement(Element sourceEl) {
+        String sourceTag = sourceEl.tagName();
+        Attributes destAttrs = new Attributes();
+        Element dest = new Element(Tag.valueOf(sourceTag), sourceEl.baseUri(), destAttrs);
+        int numDiscarded = 0;
+
+        Attributes sourceAttrs = sourceEl.attributes();
+        for (Attribute sourceAttr : sourceAttrs) {
+            if (isSafeAttribute(sourceTag, sourceEl, sourceAttr))
+                destAttrs.put(sourceAttr);
+            else
+                numDiscarded++;
+        }
+        Attributes enforcedAttrs = getEnforcedAttributes(sourceTag);
+        destAttrs.addAll(enforcedAttrs);
+
+        // Copy the original start and end range, if set
+        // TODO - might be good to make a generic Element#userData set type interface, and copy those all over
+        if (sourceEl.sourceRange().isTracked())
+            sourceEl.sourceRange().track(dest, true);
+        if (sourceEl.endSourceRange().isTracked())
+            sourceEl.endSourceRange().track(dest, false);
+
+        return new Cleaner.ElementMeta(dest, numDiscarded);
     }
 
     /**

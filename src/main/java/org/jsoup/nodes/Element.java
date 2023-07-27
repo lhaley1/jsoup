@@ -828,38 +828,42 @@ public class Element extends Node {
      */
     public String cssSelector() {
         if (id().length() > 0) {
-            // prefer to return the ID - but check that it's actually unique first!
             String idSel = "#" + escapeCssIdentifier(id());
             Document doc = ownerDocument();
             if (doc != null) {
                 Elements els = doc.select(idSel);
-                if (els.size() == 1 && els.get(0) == this) // otherwise, continue to the nth-child impl
+                if (els.size() == 1 && els.get(0) == this)
                     return idSel;
             } else {
-                return idSel; // no ownerdoc, return the ID selector
+                return idSel;
             }
         }
 
-        // Escape tagname, and translate HTML namespace ns:tag to CSS namespace syntax ns|tag
+        StringBuilder selector = buildSelector();
+
+        if (parent() != null && !(parent() instanceof Document)) {
+            selector.insert(0, " > ");
+            if (parent().select(selector.toString()).size() > 1) {
+                selector.append(String.format(":nth-child(%d)", elementSiblingIndex() + 1));
+            }
+            return parent().cssSelector() + StringUtil.releaseBuilder(selector);
+        }
+
+        return StringUtil.releaseBuilder(selector);
+    }
+
+    private StringBuilder buildSelector() {
         String tagName = escapeCssIdentifier(tagName()).replace("\\:", "|");
         StringBuilder selector = StringUtil.borrowBuilder().append(tagName);
-        // String classes = StringUtil.join(classNames().stream().map(TokenQueue::escapeCssIdentifier).iterator(), ".");
-        // todo - replace with ^^ in 1.16.1 when we enable Android support for stream etc
         StringUtil.StringJoiner escapedClasses = new StringUtil.StringJoiner(".");
-        for (String name : classNames()) escapedClasses.add(escapeCssIdentifier(name));
+        for (String name : classNames()) {
+            escapedClasses.add(escapeCssIdentifier(name));
+        }
         String classes = escapedClasses.complete();
-        if (classes.length() > 0)
+        if (classes.length() > 0) {
             selector.append('.').append(classes);
-
-        if (parent() == null || parent() instanceof Document) // don't add Document to selector, as will always have a html node
-            return StringUtil.releaseBuilder(selector);
-
-        selector.insert(0, " > ");
-        if (parent().select(selector.toString()).size() > 1)
-            selector.append(String.format(
-                ":nth-child(%d)", elementSiblingIndex() + 1));
-
-        return parent().cssSelector() + StringUtil.releaseBuilder(selector);
+        }
+        return selector;
     }
 
     /**

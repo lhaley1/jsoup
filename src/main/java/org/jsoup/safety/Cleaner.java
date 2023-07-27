@@ -177,32 +177,10 @@ public class Cleaner {
     }
 
     private ElementMeta createSafeElement(Element sourceEl) {
-        String sourceTag = sourceEl.tagName();
-        Attributes destAttrs = new Attributes();
-        Element dest = new Element(Tag.valueOf(sourceTag), sourceEl.baseUri(), destAttrs);
-        int numDiscarded = 0;
-
-        Attributes sourceAttrs = sourceEl.attributes();
-        for (Attribute sourceAttr : sourceAttrs) {
-            if (safelist.isSafeAttribute(sourceTag, sourceEl, sourceAttr))
-                destAttrs.put(sourceAttr);
-            else
-                numDiscarded++;
-        }
-        Attributes enforcedAttrs = safelist.getEnforcedAttributes(sourceTag);
-        destAttrs.addAll(enforcedAttrs);
-
-        // Copy the original start and end range, if set
-        // TODO - might be good to make a generic Element#userData set type interface, and copy those all over
-        if (sourceEl.sourceRange().isTracked())
-            sourceEl.sourceRange().track(dest, true);
-        if (sourceEl.endSourceRange().isTracked())
-            sourceEl.endSourceRange().track(dest, false);
-
-        return new ElementMeta(dest, numDiscarded);
+        return safelist.createSafeElement(sourceEl);
     }
 
-    private static class ElementMeta {
+    public static class ElementMeta {
         Element el;
         int numAttribsDiscarded;
 

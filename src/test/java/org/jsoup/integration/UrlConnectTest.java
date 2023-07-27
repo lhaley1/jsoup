@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Disabled // ignored by default so tests don't require network access. comment out to enable.
 // todo: rebuild these into a local Jetty test server, so not reliant on the vagaries of the internet.
 public class UrlConnectTest {
-    private static final String WEBSITE_WITH_INVALID_CERTIFICATE = "https://certs.cac.washington.edu/CAtest/";
+    private static final String INVALID_CERTIFICATE = "https://certs.cac.washington.edu/CAtest/";
     private static final String WEBSITE_WITH_SNI = "https://jsoup.org/";
     public static String browserUa = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.112 Safari/537.36";
 
@@ -240,7 +240,7 @@ public class UrlConnectTest {
      */
     @Test
     public void testUnsafeFail() throws Exception {
-        String url = WEBSITE_WITH_INVALID_CERTIFICATE;
+        String url = INVALID_CERTIFICATE;
         assertThrows(IOException.class, () -> Jsoup.connect(url).execute());
     }
 

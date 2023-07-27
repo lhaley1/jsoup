@@ -1241,7 +1241,6 @@ public class ElementTest {
         assertEquals("html > body > p.one\\.two\\:three\\/four", threeSelect);
         assertEquals(three, doc.expectFirst(threeSelect));
     }
-
     @Test public void cssEscapedAmp() {
         Document doc = Jsoup.parse("<p class='\\&'>One</p>");
         Element one = doc.expectFirst(".\\\\\\&"); // tested matches js querySelector
